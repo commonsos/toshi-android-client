@@ -276,7 +276,8 @@ public final class SofaMessageManager {
             this.sofaGcmRegister = new SofaMessageRegistration(this.sharedPreferences, this.chatService, this.protocolStore);
         }
         return this.sofaGcmRegister
-                .registerIfNeededWithOnboarding()
+                .registerIfNeeded()
+                .andThen(new OnboardingManager().tryTriggerOnboarding())
                 .doOnCompleted(this::handleRegistrationCompleted);
     }
 
@@ -312,11 +313,6 @@ public final class SofaMessageManager {
             throw new TimeoutException(e.toString());
         }
         return this.messageReceiver.fetchLatestMessage();
-    }
-
-    public Completable tryTriggerOnboarding() {
-        if (this.sofaGcmRegister == null) return Completable.error(new Throwable("SofaMessageRegistration is null"));
-        return this.sofaGcmRegister.tryTriggerOnboarding();
     }
 
     public void clear() {

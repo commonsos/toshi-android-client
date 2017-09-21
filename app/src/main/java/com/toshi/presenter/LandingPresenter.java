@@ -24,7 +24,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.toshi.R;
-import com.toshi.manager.chat.SofaMessageRegistration;
+import com.toshi.manager.OnboardingManager;
 import com.toshi.util.LogUtil;
 import com.toshi.util.SharedPrefsUtil;
 import com.toshi.util.TermsDialog;
@@ -111,9 +111,7 @@ public class LandingPresenter implements Presenter<LandingActivity> {
 
     private void triggerOnboarding() {
         final Subscription sub =
-                BaseApplication
-                .get()
-                .getSofaMessageManager()
+                new OnboardingManager()
                 .tryTriggerOnboarding()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -137,7 +135,7 @@ public class LandingPresenter implements Presenter<LandingActivity> {
                 .putExtra(MainActivity.EXTRA__ACTIVE_TAB, 1);
 
         final Intent chatIntent = new Intent(this.activity, ChatActivity.class)
-                .putExtra(ChatActivity.EXTRA__THREAD_ID, SofaMessageRegistration.ONBOARDING_BOT_ID)
+                .putExtra(ChatActivity.EXTRA__THREAD_ID, OnboardingManager.ONBOARDING_BOT_ID)
                 .putExtra(ChatActivity.EXTRA__INIT_MESSAGE, false)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
