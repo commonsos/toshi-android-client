@@ -46,6 +46,7 @@ import java.text.DecimalFormat;
 
 import rx.Completable;
 import rx.Single;
+import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 import rx.subjects.BehaviorSubject;
@@ -59,6 +60,7 @@ public class BalanceManager {
     private HDWallet wallet;
     private SharedPreferences prefs;
     private SharedPreferences gcmPrefs;
+    private Subscription connectivitySub;
 
     /* package */ BalanceManager() {
     }
@@ -83,7 +85,12 @@ public class BalanceManager {
     }
 
     private void attachConnectivityObserver() {
-        BaseApplication
+        if (this.connectivitySub != null) {
+            this.connectivitySub.unsubscribe();
+        }
+
+        this.connectivitySub =
+                BaseApplication
                 .get()
                 .isConnectedSubject()
                 .subscribeOn(Schedulers.io())

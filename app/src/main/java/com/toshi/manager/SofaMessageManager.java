@@ -55,16 +55,15 @@ import java.util.concurrent.TimeoutException;
 import rx.Completable;
 import rx.Observable;
 import rx.Single;
+import rx.Subscription;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
-import rx.subscriptions.CompositeSubscription;
 
 public final class SofaMessageManager {
     private final ConversationStore conversationStore;
 
     private final SharedPreferences sharedPreferences;
     private final SignalServiceUrl[] signalServiceUrls;
-    private final CompositeSubscription subscriptions;
     private final String userAgent;
 
     private ChatService chatService;
@@ -73,13 +72,13 @@ public final class SofaMessageManager {
     private SofaMessageRegistration sofaGcmRegister;
     private SofaMessageSender messageSender;
     private HDWallet wallet;
+    private Subscription connectivitySub;
 
     /*package*/ SofaMessageManager() {
         this.conversationStore = new ConversationStore();
         this.userAgent = "Android " + BuildConfig.APPLICATION_ID + " - " + BuildConfig.VERSION_NAME +  ":" + BuildConfig.VERSION_CODE;
         this.signalServiceUrls = new SignalServiceUrl[1];
         this.sharedPreferences = BaseApplication.get().getSharedPreferences(FileNames.GCM_PREFS, Context.MODE_PRIVATE);
-        this.subscriptions = new CompositeSubscription();
     }
 
     public final Completable init(final HDWallet wallet) {
@@ -207,7 +206,12 @@ public final class SofaMessageManager {
     }
 
     private void attachConnectivityObserver() {
-        BaseApplication
+        if (this.connectivitySub != null) {
+            this.connectivitySub.unsubscribe();
+        }
+
+        this.connectivitySub =
+                BaseApplication
                 .get()
                 .isConnectedSubject()
                 .subscribeOn(Schedulers.io())
@@ -319,7 +323,6 @@ public final class SofaMessageManager {
         clearMessageReceiver();
         clearMessageSender();
         clearGcmRegistration();
-        clearSubscriptions();
         this.protocolStore.deleteAllSessions();
         this.sharedPreferences
                 .edit()
@@ -343,9 +346,5 @@ public final class SofaMessageManager {
 
     private void clearGcmRegistration() {
         this.sofaGcmRegister = null;
-    }
-
-    private void clearSubscriptions() {
-        this.subscriptions.clear();
     }
 }
