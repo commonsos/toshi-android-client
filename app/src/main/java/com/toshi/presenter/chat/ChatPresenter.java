@@ -725,12 +725,16 @@ public final class ChatPresenter implements Presenter<ChatActivity> {
     }
 
     private void tryInitAppConversation() {
-        if (this.recipient.isGroup() || !this.recipient.getUser().isApp()) return;
+        if (!shouldSendInitMessage() || this.recipient.isGroup() || !this.recipient.getUser().isApp()) return;
 
         BaseApplication
                 .get()
                 .getSofaMessageManager()
                 .sendInitMessage(getCurrentLocalUser(), this.recipient);
+    }
+
+    private boolean shouldSendInitMessage() {
+        return this.activity.getIntent().getBooleanExtra(ChatActivity.EXTRA__INIT_MESSAGE, true);
     }
 
     private void initMessageObservables() {

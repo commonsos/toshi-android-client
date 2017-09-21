@@ -42,6 +42,7 @@ import rx.schedulers.Schedulers;
 public class SofaMessageRegistration {
 
     private static final String ONBOARDING_BOT_NAME = "ToshiBot";
+    public static final String ONBOARDING_BOT_ID = "0x1cdda5e6c54adfe857aad6f244d4a452b66cc798";
     private static final String CHAT_SERVICE_SENT_TOKEN_TO_SERVER = "chatServiceSentTokenToServer";
 
     private final SharedPreferences sharedPreferences;
@@ -68,7 +69,7 @@ public class SofaMessageRegistration {
                     .registerKeys(this.protocolStore)
                     .andThen(setRegisteredWithServer())
                     .andThen(registerChatGcm(true))
-                    .doOnCompleted(this::tryTriggerOnboarding);
+                    .andThen(tryTriggerOnboarding());
         } else {
             return registerChatGcm(false)
                     .doOnCompleted(this::tryTriggerOnboarding);
@@ -116,10 +117,10 @@ public class SofaMessageRegistration {
         .subscribeOn(Schedulers.io());
     }
 
-    private void tryTriggerOnboarding() {
-        if (SharedPrefsUtil.hasOnboarded()) return;
+    private Completable tryTriggerOnboarding() {
+        if (SharedPrefsUtil.hasOnboarded()) return Completable.complete();
 
-        IdService.getApi()
+        return IdService.getApi()
                 .searchByUsername(ONBOARDING_BOT_NAME)
                 .subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
@@ -128,10 +129,9 @@ public class SofaMessageRegistration {
                 .flatMapIterable(users -> users)
                 .filter(user -> user.getUsernameForEditing().equals(ONBOARDING_BOT_NAME))
                 .toSingle()
-                .subscribe(
-                        this::sendOnboardingMessageToOnboardingBot,
-                        this::handleOnboardingBotError
-                );
+                .doOnSuccess(this::sendOnboardingMessageToOnboardingBot)
+                .doOnError(throwable -> LogUtil.exception(getClass(), "Error during sending onboarding message to bot", throwable))
+                .toCompletable();
     }
 
     private void sendOnboardingMessageToOnboardingBot(final User onboardingBot) {
@@ -142,12 +142,8 @@ public class SofaMessageRegistration {
                 .doOnSuccess(__ -> SharedPrefsUtil.setHasOnboarded(true))
                 .subscribe(
                         currentUser -> this.sendOnboardingMessage(currentUser, new Recipient(onboardingBot)),
-                        this::handleOnboardingBotError
+                        throwable -> LogUtil.exception(getClass(), "Error during sending onboarding message to bot", throwable)
                 );
-    }
-
-    private void handleOnboardingBotError(final Throwable throwable) {
-        LogUtil.exception(getClass(), "Error during sending onboarding message to bot", throwable);
     }
 
     private void sendOnboardingMessage(final User sender, final Recipient onboardingBot) {
