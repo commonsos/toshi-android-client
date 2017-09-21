@@ -68,12 +68,20 @@ public class SofaMessageRegistration {
             return this.chatService
                     .registerKeys(this.protocolStore)
                     .andThen(setRegisteredWithServer())
-                    .andThen(registerChatGcm(true))
-                    .andThen(tryTriggerOnboarding());
+                    .andThen(registerChatGcm(true));
         } else {
             return registerChatGcm(false)
                     .doOnCompleted(this::tryTriggerOnboarding);
         }
+    }
+
+    public Completable registerIfNeededWithOnboarding() {
+        if (haveRegisteredWithServer()) return Completable.complete();
+        return this.chatService
+                .registerKeys(this.protocolStore)
+                .andThen(setRegisteredWithServer())
+                .andThen(registerChatGcm(true))
+                .andThen(tryTriggerOnboarding());
     }
 
     private boolean haveRegisteredWithServer() {
@@ -117,7 +125,7 @@ public class SofaMessageRegistration {
         .subscribeOn(Schedulers.io());
     }
 
-    private Completable tryTriggerOnboarding() {
+    public Completable tryTriggerOnboarding() {
         if (SharedPrefsUtil.hasOnboarded()) return Completable.complete();
 
         return IdService.getApi()

@@ -90,9 +90,8 @@ public class LandingPresenter implements Presenter<LandingActivity> {
                 .getToshiManager()
                 .initNewWallet()
                 .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                        this::handleWalletSuccess,
+                        this::triggerOnboarding,
                         this::handleWalletError
                 );
 
@@ -104,7 +103,29 @@ public class LandingPresenter implements Presenter<LandingActivity> {
         this.activity.getBinding().loadingSpinner.setVisibility(View.VISIBLE);
     }
 
-    private void handleWalletSuccess() {
+    private void handleWalletError(final Throwable throwable) {
+        LogUtil.exception(getClass(), "Error while creating new wallet", throwable);
+        stopLoadingTask();
+        showToast(R.string.unable_to_create_wallet);
+    }
+
+    private void triggerOnboarding() {
+        final Subscription sub =
+                BaseApplication
+                .get()
+                .getSofaMessageManager()
+                .tryTriggerOnboarding()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        this::handleOnboardingSuccess,
+                        __ -> handleOnboardingError()
+                );
+
+        this.subscriptions.add(sub);
+    }
+
+    private void handleOnboardingSuccess() {
         stopLoadingTask();
         goToChatActivity();
     }
@@ -129,10 +150,16 @@ public class LandingPresenter implements Presenter<LandingActivity> {
         this.activity.finish();
     }
 
-    private void handleWalletError(final Throwable throwable) {
-        LogUtil.exception(getClass(), "Error while creating new wallet", throwable);
+    private void handleOnboardingError() {
         stopLoadingTask();
-        showToast(R.string.unable_to_create_wallet);
+        SharedPrefsUtil.setSignedIn();
+        goToMainActivity();
+    }
+
+    private void goToMainActivity() {
+        final Intent intent = new Intent(this.activity, MainActivity.class);
+        this.activity.startActivity(intent);
+        this.activity.finish();
     }
 
     private void stopLoadingTask() {
