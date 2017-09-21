@@ -88,14 +88,17 @@ public class BalanceManager {
                 .isConnectedSubject()
                 .subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
+                .skip(1)
+                .filter(isConnected -> isConnected)
                 .subscribe(
-                        __ -> this.refreshBalance(),
-                        this::handleConnectionStateError
+                        __ -> handleConnectivity(),
+                        throwable -> LogUtil.exception(getClass(), "Error checking connection state", throwable)
                 );
     }
 
-    private void handleConnectionStateError(final Throwable throwable) {
-        LogUtil.exception(getClass(), "Error checking connection state", throwable);
+    private void handleConnectivity() {
+        refreshBalance();
+        registerEthGcm(false);
     }
 
     public void refreshBalance() {
