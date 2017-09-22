@@ -18,16 +18,10 @@
 package com.toshi.view.notification;
 
 
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.media.AudioAttributes;
-import android.net.Uri;
-import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
 
-import com.toshi.R;
 import com.toshi.crypto.signal.model.DecryptedSignalMessage;
 import com.toshi.model.local.Recipient;
 import com.toshi.model.local.User;
@@ -40,10 +34,9 @@ import com.toshi.view.notification.model.ChatNotification;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-public class ChatNotificationManager {
+public class ChatNotificationManager extends ToshiNotificationBuilder {
 
     private static String currentlyOpenConversation;
     private static final Map<String, ChatNotification> activeNotifications = new HashMap<>();
@@ -127,90 +120,15 @@ public class ChatNotificationManager {
 
         activeNotifications.put(notificationKey, activeChatNotification);
 
+        activeChatNotification.addUnreadMessage(content);
         activeChatNotification
-                .addUnreadMessage(content)
                 .generateLargeIcon()
-                .subscribe(() -> showChatNotification(activeChatNotification));
+                .subscribe(() -> showNotification(activeChatNotification, getChatNotificationBuilder(activeChatNotification)));
     }
 
-    private static void showChatNotification(final ChatNotification chatNotification) {
-        if (android.os.Build.VERSION.SDK_INT >= 26) {
-            createNotificationChannel(chatNotification);
-        }
-
-        final int lightOnRate = 1000 * 2;
-        final int lightOffRate = 1000 * 15;
-        final int notificationColor = ContextCompat.getColor(BaseApplication.get(), R.color.colorPrimary);
-        final Uri notificationSound = Uri.parse("android.resource://" + BaseApplication.get().getPackageName() + "/" + R.raw.notification);
-        final NotificationCompat.Style style = generateNotificationStyle(chatNotification);
-        final CharSequence contextText = chatNotification.getLastMessage();
-
-        final NotificationCompat.Builder builder = new NotificationCompat.Builder(BaseApplication.get(), chatNotification.getId())
-                .setSmallIcon(R.drawable.ic_notification)
-                .setLargeIcon(chatNotification.getLargeIcon())
-                .setContentTitle(chatNotification.getTitle())
-                .setContentText(contextText)
-                .setTicker(contextText)
-                .setAutoCancel(true)
-                .setSound(notificationSound)
-                .setColor(notificationColor)
-                .setLights(notificationColor, lightOnRate, lightOffRate)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setStyle(style)
-                .setNumber(chatNotification.getNumberOfUnreadMessages())
-                .setContentIntent(chatNotification.getPendingIntent())
-                .setDeleteIntent(chatNotification.getDeleteIntent());
-
-        final int maxNumberMessagesWithSound = 3;
-        if (chatNotification.getNumberOfUnreadMessages() > maxNumberMessagesWithSound) {
-            builder
-                .setSound(null)
-                .setVibrate(null);
-        }
-
-        final NotificationManager manager = (NotificationManager) BaseApplication.get().getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(chatNotification.getTag(), 1, builder.build());
-    }
-
-    @RequiresApi(api = 26)
-    private static void createNotificationChannel(final ChatNotification chatNotification) {
-        final int notificationColor = ContextCompat.getColor(BaseApplication.get(), R.color.colorPrimary);
-        final Uri notificationSound = Uri.parse("android.resource://" + BaseApplication.get().getPackageName() + "/" + R.raw.notification);
-        final CharSequence channelName = chatNotification.getTitle();
-
-        final NotificationChannel notificationChannel = new NotificationChannel(chatNotification.getId(), channelName, NotificationManager.IMPORTANCE_HIGH);
-        notificationChannel.enableLights(true);
-        notificationChannel.setLightColor(notificationColor);
-        notificationChannel.enableVibration(true);
-        notificationChannel.setSound(notificationSound,
-                new AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setFlags(AudioAttributes.USAGE_NOTIFICATION)
-                        .build()
-        );
-
-        final NotificationManager manager = (NotificationManager) BaseApplication.get().getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.createNotificationChannel(notificationChannel);
-    }
-
-    private static NotificationCompat.Style generateNotificationStyle(final ChatNotification chatNotification) {
-        final int numberOfUnreadMessages = chatNotification.getNumberOfUnreadMessages();
-
-        if (numberOfUnreadMessages == 1) {
-            return new NotificationCompat
-                    .BigTextStyle()
-                    .setBigContentTitle(chatNotification.getTitle())
-                    .bigText(chatNotification.getLastMessage());
-        }
-
-        final List<String> lastFewMessages = chatNotification.getLastFewMessages();
-        final NotificationCompat.Style style =
-                new NotificationCompat
-                        .InboxStyle()
-                        .setBigContentTitle(chatNotification.getTitle());
-        for (final String message : lastFewMessages) {
-            ((NotificationCompat.InboxStyle) style).addLine(message);
-        }
-        return style;
+    private static NotificationCompat.Builder getChatNotificationBuilder(final ChatNotification activeChatNotification) {
+        return buildNotification(activeChatNotification)
+                .setDeleteIntent(activeChatNotification.getDeleteIntent())
+                .setContentIntent(activeChatNotification.getPendingIntent());
     }
 }
