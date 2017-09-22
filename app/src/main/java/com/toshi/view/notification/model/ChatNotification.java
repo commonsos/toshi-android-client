@@ -20,8 +20,6 @@ package com.toshi.view.notification.model;
 
 import android.app.PendingIntent;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.support.v4.app.TaskStackBuilder;
 
 import com.bumptech.glide.Glide;
@@ -34,83 +32,37 @@ import com.toshi.view.activity.MainActivity;
 import com.toshi.view.activity.SplashActivity;
 import com.toshi.view.custom.CropCircleTransformation;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import rx.Completable;
 
-public class ChatNotification {
+public class ChatNotification extends ToshiNotification {
 
-    public static final String DEFAULT_TAG = "unknown";
-
-    private String id;
     private final Recipient sender;
-    private final ArrayList<String> messages;
-    private List<String> lastFewMessages;
-    private CharSequence lastMessage;
-    private static final int MAXIMUM_NUMBER_OF_SHOWN_MESSAGES = 5;
-    private Bitmap largeIcon;
 
     public ChatNotification(final Recipient sender) {
+        super();
         this.sender = sender;
-        this.messages = new ArrayList<>();
-        generateId();
-        generateLatestMessages(this.messages);
     }
 
-    public ChatNotification addUnreadMessage(final String unreadMessage) {
-        this.messages.add(unreadMessage);
-        generateLatestMessages(this.messages);
-        return this;
-    }
-
-    private synchronized void generateLatestMessages(final ArrayList<String> messages) {
-        if (messages.size() == 0) {
-            this.lastMessage = "";
-            this.lastFewMessages = new ArrayList<>(0);
-            return;
-        }
-
-        this.lastMessage = messages.get(messages.size() -1);
-
-        final int end = Math.max(messages.size(), 0);
-        final int start = Math.max(end - MAXIMUM_NUMBER_OF_SHOWN_MESSAGES, 0);
-        this.lastFewMessages = messages.subList(start, end);
-
-    }
-
-    private void generateId() {
+    @Override
+    /* package */ void generateId() {
         this.id = this.sender == null
                 ? UUID.randomUUID().toString()
                 : this.sender.getThreadId();
     }
 
-    public String getId() {
-        return this.id;
-    }
-
+    @Override
     public String getTag() {
         return this.sender == null ? DEFAULT_TAG : sender.getThreadId();
     }
 
+    @Override
     public String getTitle() {
         return this.sender == null
                 ? BaseApplication.get().getString(R.string.unknown_sender)
                 : this.sender.getDisplayName();
-    }
-
-    public Bitmap getLargeIcon() {
-        return this.largeIcon;
-    }
-
-    public CharSequence getLastMessage() {
-        return this.lastMessage;
-    }
-
-    public List<String> getLastFewMessages() {
-        return new ArrayList<>(lastFewMessages);
     }
 
     public PendingIntent getPendingIntent() {
@@ -156,10 +108,6 @@ public class ChatNotification {
                 PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    public int getNumberOfUnreadMessages() {
-        return messages.size();
-    }
-
     public Completable generateLargeIcon() {
         if (this.largeIcon != null) return Completable.complete();
         if (getAvatarUri() == null) return Completable.fromAction(this::setDefaultLargeIcon);
@@ -181,10 +129,6 @@ public class ChatNotification {
                         .transform(new CropCircleTransformation(BaseApplication.get()))
                         .into(200, 200)
                         .get();
-    }
-
-    private Bitmap setDefaultLargeIcon() {
-        return this.largeIcon = BitmapFactory.decodeResource(BaseApplication.get().getResources(), R.mipmap.ic_launcher);
     }
 
     private String getAvatarUri() {

@@ -269,4 +269,5 @@
     <string name="terms_dialog_title">Accept Terms</string>
     <string name="terms_dialog_message">By creating an account, you agree to the Toshi <a href="https://www.toshi.org/terms-of-service/">Terms of Service</a> and <a href="https://www.toshi.org/privacy-policy/">Privacy Policy</a></string>
     <string name="agree">Agree</string>
+    <string name="payment_failed">Payment failed</string>
 </resources>
