@@ -45,6 +45,7 @@ import com.toshi.util.LocaleUtil;
 import com.toshi.util.LogUtil;
 import com.toshi.view.BaseApplication;
 import com.toshi.view.notification.ChatNotificationManager;
+import com.toshi.view.notification.ExternalPaymentNotificationManager;
 
 import java.io.IOException;
 
@@ -418,8 +419,7 @@ public class TransactionManager {
     private void handleOutgoingExternalPaymentError(final Throwable error, final Payment payment) {
         LogUtil.exception(getClass(), "Error sending external payment.", error);
         final String paymentAddress = payment.getToAddress();
-        final String content = getNotificationContent(paymentAddress);
-        ChatNotificationManager.showChatNotification(null, content);
+        ExternalPaymentNotificationManager.showExternalPaymentFailed(paymentAddress);
     }
 
     public Single<SignedTransaction> signW3Transaction(final UnsignedW3Transaction transaction) {
