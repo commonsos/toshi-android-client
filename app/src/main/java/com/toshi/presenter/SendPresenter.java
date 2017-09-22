@@ -21,6 +21,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.support.annotation.NonNull;
 import android.view.View;
+import android.widget.Toast;
 
 import com.jakewharton.rxbinding.widget.RxTextView;
 import com.toshi.BuildConfig;
@@ -29,6 +30,7 @@ import com.toshi.crypto.util.TypeConverter;
 import com.toshi.model.local.ActivityResultHolder;
 import com.toshi.model.local.Network;
 import com.toshi.model.local.Networks;
+import com.toshi.model.network.Balance;
 import com.toshi.util.BuildTypes;
 import com.toshi.util.EthUtil;
 import com.toshi.util.LogUtil;
@@ -43,6 +45,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import rx.Subscription;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
 
 public class SendPresenter implements Presenter<SendActivity> {
@@ -120,19 +124,54 @@ public class SendPresenter implements Presenter<SendActivity> {
                         null,
                         PaymentType.TYPE_SEND
                 );
-        dialog.setOnPaymentConfirmationApprovedListener(__ -> onPaymentApproved());
+        dialog.setOnPaymentConfirmationApprovedListener(__ -> fetchBalance());
         dialog.show(this.activity.getSupportFragmentManager(), PaymentConfirmationDialog.TAG);
     }
 
-    private void onPaymentApproved() {
+    private void fetchBalance() {
+        final Subscription sub =
+                BaseApplication
+                .get()
+                .getBalanceManager()
+                .getBalance()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        balance -> checkBalanceAndSendExternalPayment(balance, this.encodedEthAmount),
+                        this::handleBalanceError
+                );
+
+        this.subscriptions.add(sub);
+    }
+
+    private void checkBalanceAndSendExternalPayment(final Balance balance, final String sendAmount) {
+        final BigInteger convertedSendAmount = TypeConverter.StringHexToBigInteger(sendAmount);
+        final int compareResult = convertedSendAmount.compareTo(balance.getUnconfirmedBalance());
+        final boolean validAmount = compareResult == -1 || compareResult == 0;
+
+        if (validAmount) {
+            sendExternalPayment(sendAmount);
+            return;
+        }
+
+        Toast.makeText(this.activity, "Your balance is less than the sending amount", Toast.LENGTH_SHORT).show();
+    }
+
+    private void sendExternalPayment(final String encodedEthAmount) {
         BaseApplication
                 .get()
                 .getTransactionManager()
                 .sendExternalPayment(
                         getRecipientAddress(),
-                        this.encodedEthAmount
+                        encodedEthAmount
                 );
+
         this.activity.finish();
+    }
+
+    private void handleBalanceError(final Throwable throwable) {
+        LogUtil.e(getClass(), "Error when fetching balance " + throwable);
+        Toast.makeText(this.activity, "Couldn't not fetch balance", Toast.LENGTH_SHORT).show();
     }
 
     private void processIntentData() {
